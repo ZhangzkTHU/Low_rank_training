@@ -25,36 +25,44 @@ def posemb_sincos_2d(patches, temperature = 10000, dtype = torch.float32):
     return pe.type(dtype)
 
 # classes
-class FeedForward_op(nn.Module):
-    def __init__(self, dim, hidden_dim, r=None):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Linear(hidden_dim, dim),
-        )
+    # class FeedForward_op(nn.Module):
+    #     def __init__(self, dim, hidden_dim, r=None):
+    #         super().__init__()
+    #         self.net = nn.Sequential(
+    #             nn.LayerNorm(dim),
+    #             nn.Linear(dim, hidden_dim),
+    #             nn.GELU(),
+    #             nn.Linear(hidden_dim, hidden_dim),
+    #             nn.Linear(hidden_dim, hidden_dim),
+    #             nn.Linear(hidden_dim, dim),
+    #         )
 
-    def forward(self, x):
-        return self.net(x)
+    #     def forward(self, x):
+    #         return self.net(x)
 
 class FeedForward(nn.Module):
-    def __init__(self, dim, hidden_dim, r=None):
+    def __init__(self, dim, hidden_dim, r=None, deep=False):
         super().__init__()
-        if isinstance(r, int):
-            self.net = nn.Sequential(
-                nn.LayerNorm(dim),
-                nn.Linear(dim, hidden_dim),
-                # nn.Linear(dim, r),
-                # nn.Linear(r, r),
-                # nn.Linear(r, hidden_dim),
-                nn.GELU(),
-                nn.Linear(hidden_dim, r),
-                nn.Linear(r, r),
-                nn.Linear(r, dim),
-            )
+        if isinstance(r, int) and r != 0:
+            if deep:
+                self.net = nn.Sequential(
+                    nn.Linear(dim, r),
+                    nn.Linear(r, r),
+                    nn.Linear(r, hidden_dim),
+                    nn.GELU(),
+                    nn.Linear(hidden_dim, r),
+                    nn.Linear(r, r),
+                    nn.Linear(r, dim),
+                )
+            else:
+                self.net = nn.Sequential(
+                    nn.LayerNorm(dim),
+                    nn.Linear(dim, r),
+                    nn.Linear(r, hidden_dim),
+                    nn.GELU(),
+                    nn.Linear(hidden_dim, r),
+                    nn.Linear(r, dim),
+                )
         else:
             self.net = nn.Sequential(
                 nn.LayerNorm(dim),
@@ -67,7 +75,7 @@ class FeedForward(nn.Module):
         return self.net(x)
 
 class Attention(nn.Module):
-    def __init__(self, dim, heads = 8, dim_head = 64, r=None):
+    def __init__(self, dim, heads = 8, dim_head = 64, r=None, deep=False):
         super().__init__()
         inner_dim = dim_head *  heads
         self.heads = heads
@@ -77,9 +85,14 @@ class Attention(nn.Module):
         self.attend = nn.Softmax(dim = -1)
 
         if isinstance(r, int):
-            self.to_q = nn.Sequential(nn.Linear(dim, r, bias = False), nn.Linear(r, inner_dim, bias = False),)
-            self.to_k = nn.Sequential(nn.Linear(dim, r, bias = False), nn.Linear(r, inner_dim, bias = False),)
-            self.to_v = nn.Sequential(nn.Linear(dim, r, bias = False), nn.Linear(r, inner_dim, bias = False),)
+            if deep:
+                self.to_q = nn.Sequential(nn.Linear(dim, r, bias = False),nn.Linear(r, r, bias=False), nn.Linear(r, inner_dim, bias = False),)
+                self.to_k = nn.Sequential(nn.Linear(dim, r, bias = False),nn.Linear(r, r, bias=False), nn.Linear(r, inner_dim, bias = False),)
+                self.to_v = nn.Sequential(nn.Linear(dim, r, bias = False),nn.Linear(r, r, bias=False), nn.Linear(r, inner_dim, bias = False),)
+            else:
+                self.to_q = nn.Sequential(nn.Linear(dim, r, bias = False), nn.Linear(r, inner_dim, bias = False),)
+                self.to_k = nn.Sequential(nn.Linear(dim, r, bias = False), nn.Linear(r, inner_dim, bias = False),)
+                self.to_v = nn.Sequential(nn.Linear(dim, r, bias = False), nn.Linear(r, inner_dim, bias = False),)
         else:
             self.to_q = nn.Linear(dim, inner_dim, bias = False)
             self.to_k = nn.Linear(dim, inner_dim, bias = False)
@@ -151,14 +164,14 @@ class Attention(nn.Module):
 #         return self.to_out(out)
 
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, rs):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, rs_ff, rs_attn, deep):
         super().__init__()
         self.layers = nn.ModuleList([])
 
         for l in range(depth):
             self.layers.append(nn.ModuleList([
-                Attention(dim, heads = heads, dim_head = dim_head),
-                FeedForward(dim, mlp_dim, r = rs[l])
+                Attention(dim, heads = heads, dim_head = dim_head, r = rs_attn[l], deep=deep),
+                FeedForward(dim, mlp_dim, r = rs_ff[l], deep=deep)
             ]))
 
     def forward(self, x):
@@ -233,7 +246,7 @@ class ViT(nn.Module):
         return self.linear_head(x)
 
 class ViT_factorized(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, rs = None, init_scale=0.1):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, init_scale=0.1, rs_ff=None, rs_attn=None, deep=False):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -248,7 +261,7 @@ class ViT_factorized(nn.Module):
             nn.Linear(patch_dim, dim),
         )
 
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, rs)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, rs_ff, rs_attn, deep)
 
         self.to_latent = nn.Identity()
         self.linear_head = nn.Sequential(

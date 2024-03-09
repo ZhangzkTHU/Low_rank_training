@@ -151,24 +151,6 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 
 # factorziation settings
 
-rs_ff, rs_attn = (None,) * 12, (None,) * 12
-## factorize one block
-# if args.ff_layer is not None:
-#     rs_ff = (None,) * (args.ff_layer - 1) + (args.r,) + (None,) * (12 - args.ff_layer)
-# if args.attn_layer is not None:
-#     rs_attn = (None,) * (args.attn_layer - 1) + (args.r,) + (None,) * (12 - args.attn_layer)
-## factorize from one block
-if args.ff_layer is not None:
-    rs_ff = (None,) * (args.ff_layer) + (args.r,) * (12 - args.ff_layer)
-if args.attn_layer is not None:
-    rs_attn = (None,) * (args.attn_layer) + (args.r,) * (12 - args.attn_layer)
-
-
-rs_patch, rs_channel = (None,) * 6, (None,) * 6
-if args.patch_layer is not None:
-    rs_patch = (None,) * (args.patch_layer) + (args.r,) * (6 - args.patch_layer)
-if args.channel_layer is not None:
-    rs_channel = (None,) * (args.channel_layer) + (args.r,) * (6 - args.channel_layer)
 
 # Model factory..
 print('==> Building model..')
@@ -182,8 +164,8 @@ if args.net=="vit_small":
     depth = 6,
     heads = 8,
     mlp_dim = 512,
-    dropout = 0.1,
-    emb_dropout = 0.1
+    dropout = 0,
+    emb_dropout = 0
 )
 elif args.net=="vit_tiny":
     from models.vit_small import ViT
@@ -198,62 +180,6 @@ elif args.net=="vit_tiny":
     dropout = 0.1,
     emb_dropout = 0.1
 )
-# elif args.net=="simplevit":
-#     from models.simplevit import SimpleViT
-#     net = SimpleViT(
-#     image_size = size,
-#     patch_size = args.patch,
-#     num_classes = 10,
-#     dim = int(args.dimhead),
-#     depth = args.depth,
-#     heads = 8,
-#     mlp_dim = 512
-# )
-# elif args.net=="simplevit_orthinit":
-#     from models.SimpleViT_orthinit import SimpleViT
-#     net = SimpleViT(
-#     image_size = size,
-#     patch_size = args.patch,
-#     num_classes = 10,
-#     dim = int(args.dimhead),
-#     depth = args.depth,
-#     heads = 8,
-#     mlp_dim = 512
-# )
-# elif args.net=="my_vit":
-#     from models.vit_factorized import ViT
-#     net = ViT(
-#     image_size = size,
-#     patch_size = args.patch,
-#     num_classes = 10,
-#     dim = int(args.dimhead),
-#     depth = 6,
-#     heads = 8,
-#     mlp_dim = 3072,
-# )
-# elif args.net=="my_vit_factorized":
-#     from models.vit_factorized import ViT_factorized
-#     net = ViT_factorized(
-#     image_size = size,
-#     patch_size = args.patch,
-#     num_classes = 10,
-#     dim = int(args.dimhead),
-#     depth = 6,
-#     heads = 8,
-#     mlp_dim = 3072,
-#     rs = [None] * 5 + [40]
-# )
-# elif args.net=="my_vit_overparameterized":
-#     from models.vit_factorized import ViT_overparametrized
-#     net = ViT_overparametrized(
-#     image_size = size,
-#     patch_size = args.patch,
-#     num_classes = 10,
-#     dim = int(args.dimhead),
-#     depth = 6,
-#     heads = 8,
-#     mlp_dim = 3072,
-# )
 elif args.net=="vit_base":
     from models.vit import ViT
     net = ViT(
@@ -265,20 +191,6 @@ elif args.net=="vit_base":
     heads = 12,
     mlp_dim = 3072,
 )
-elif args.net=="vit_base_factorized":
-    from models.vit_factorized import ViT_factorized
-    net = ViT_factorized(
-    image_size = size,
-    patch_size = args.patch,
-    num_classes = 10,
-    dim = 768,
-    depth = 12,
-    heads = 12,
-    mlp_dim = 3072,
-    rs_ff = rs_ff,
-    rs_attn = rs_attn,
-    deep = args.deep
-)
 elif args.net=="mlpmixer":
     from models.mlpmixer import MLPMixer
     net = MLPMixer(
@@ -289,83 +201,6 @@ elif args.net=="mlpmixer":
     depth = 6,
     num_classes = 10
 )
-elif args.net=="mlpmixer_factorized":
-    from models.mlpmixer import MLPMixer_factorized
-    net = MLPMixer_factorized(
-    image_size = 32,
-    channels = 3,
-    patch_size = args.patch,
-    dim = 512,
-    depth = 6,
-    num_classes = 10,
-    rs_patch = rs_patch,
-    rs_channel = rs_channel,
-    deep = args.deep
-)
-# elif args.net=="vit_base_factorizeAttn":
-#     from models.vit_factorized import ViT_factorized
-#     net = SimpleViT_FactorizeAttn(
-#     image_size = size,
-#     patch_size = args.patch,
-#     num_classes = 10,
-#     dim = 768,
-#     depth = 12,
-#     heads = 12,
-#     mlp_dim = 3072,
-#     factorize_layer = [10 for _ in range(12)]
-# )
-elif args.net=="vit":
-    # ViT for cifar10
-    net = ViT(
-    image_size = size,
-    patch_size = args.patch,
-    num_classes = 10,
-    dim = int(args.dimhead),
-    depth = 6,
-    heads = 8,
-    mlp_dim = 512,
-    dropout = 0.1,
-    emb_dropout = 0.1
-)
-elif args.net=="vit_timm":
-    import timm
-    net = timm.create_model("vit_base_patch16_384", pretrained=True)
-    net.head = nn.Linear(net.head.in_features, 10)
-elif args.net=="cait":
-    from models.cait import CaiT
-    net = CaiT(
-    image_size = size,
-    patch_size = args.patch,
-    num_classes = 10,
-    dim = int(args.dimhead),
-    depth = 6,   # depth of transformer for patch to patch attention only
-    cls_depth=2, # depth of cross attention of CLS tokens to patch
-    heads = 8,
-    mlp_dim = 512,
-    dropout = 0.1,
-    emb_dropout = 0.1,
-    layer_dropout = 0.05
-)
-elif args.net=="cait_small":
-    from models.cait import CaiT
-    net = CaiT(
-    image_size = size,
-    patch_size = args.patch,
-    num_classes = 10,
-    dim = int(args.dimhead),
-    depth = 6,   # depth of transformer for patch to patch attention only
-    cls_depth=2, # depth of cross attention of CLS tokens to patch
-    heads = 6,
-    mlp_dim = 256,
-    dropout = 0.1,
-    emb_dropout = 0.1,
-    layer_dropout = 0.05
-)
-elif args.net=="swin":
-    from models.swin import swin_t
-    net = swin_t(window_size=args.patch,
-                num_classes=10,
-                downscaling_factors=(2,2,2,1))
 
 
 # For Multi-GPU
@@ -396,10 +231,14 @@ if 'cuda' in device:
 # Loss is CE
 criterion = nn.CrossEntropyLoss()
 
-if args.opt == "adam":
-    optimizer = optim.Adam(net.parameters(), lr=args.lr)
-elif args.opt == "sgd":
-    optimizer = optim.SGD(net.parameters(), lr=args.lr)  
+# if args.opt == "adam":
+#     optimizer = optim.Adam(net.parameters(), lr=args.lr)
+# elif args.opt == "sgd":
+#     optimizer = optim.SGD(net.parameters(), lr=args.lr)
+
+## TODO: write up a new optimizer that project grad to low-rank space
+if args.opt == "adam_proj":
+    optimizer = optim.Adam(net.parameters())
     
 # use cosine scheduling
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_epochs)
@@ -434,6 +273,30 @@ def train(epoch):
     train_loss = 0
     correct = 0
     total = 0
+
+    if epoch % args.project_freq == 0:
+        # calculate projection matrix
+        print('Calculating projection matrix..')
+        feat_dict_running = []
+        proj_dict = []
+        with torch.no_grad():
+            net.eval()
+            for batch_idx, (inputs, targets) in enumerate(trainloader):
+                inputs, targets = inputs.to(device), targets.to(device)
+                outputs, feat_dict = net(inputs)   
+                for layer, feat in feat_dict.items():
+                    feat_dict_running[layer] += feat_dict_running[layer]*layer/(layer+1) + feat/(layer+1)
+                    ## centralizing or not???
+
+        # calculate projection matrix
+        print('Calculating projection matrix..')
+        for layer, feat in feat_dict_running.items():
+            U, S, V = torch.svd(feat)
+            proj = U[:, :args.r]
+            proj_dict[layer] = proj
+            
+
+    # optimizer.zero_grad()
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device), targets.to(device)
         # Train with amp
@@ -441,6 +304,10 @@ def train(epoch):
             outputs = net(inputs)
             loss = criterion(outputs, targets)
         scaler.scale(loss).backward()
+        for layer, proj in proj_dict.items():
+            for param in net.parameters():
+                param.grad = torch.matmul(proj.T, torch.matmul(proj, param.grad))
+
         scaler.step(optimizer)
         scaler.update()
         optimizer.zero_grad()

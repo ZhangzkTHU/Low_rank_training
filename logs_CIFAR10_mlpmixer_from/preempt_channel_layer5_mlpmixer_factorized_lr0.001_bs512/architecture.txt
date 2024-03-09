@@ -1,0 +1,141 @@
+Sequential(
+  (0): Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=4, p2=4)
+  (1): Linear(in_features=48, out_features=512, bias=True)
+  (2): Sequential(
+    (0): PreNormResidual(
+      (fn): Sequential(
+        (0): Conv1d(64, 256, kernel_size=(1,), stride=(1,))
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Conv1d(256, 64, kernel_size=(1,), stride=(1,))
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+    (1): PreNormResidual(
+      (fn): Sequential(
+        (0): Linear(in_features=512, out_features=256, bias=True)
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Linear(in_features=256, out_features=512, bias=True)
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+  )
+  (3): Sequential(
+    (0): PreNormResidual(
+      (fn): Sequential(
+        (0): Conv1d(64, 256, kernel_size=(1,), stride=(1,))
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Conv1d(256, 64, kernel_size=(1,), stride=(1,))
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+    (1): PreNormResidual(
+      (fn): Sequential(
+        (0): Linear(in_features=512, out_features=256, bias=True)
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Linear(in_features=256, out_features=512, bias=True)
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+  )
+  (4): Sequential(
+    (0): PreNormResidual(
+      (fn): Sequential(
+        (0): Conv1d(64, 256, kernel_size=(1,), stride=(1,))
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Conv1d(256, 64, kernel_size=(1,), stride=(1,))
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+    (1): PreNormResidual(
+      (fn): Sequential(
+        (0): Linear(in_features=512, out_features=256, bias=True)
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Linear(in_features=256, out_features=512, bias=True)
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+  )
+  (5): Sequential(
+    (0): PreNormResidual(
+      (fn): Sequential(
+        (0): Conv1d(64, 256, kernel_size=(1,), stride=(1,))
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Conv1d(256, 64, kernel_size=(1,), stride=(1,))
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+    (1): PreNormResidual(
+      (fn): Sequential(
+        (0): Linear(in_features=512, out_features=256, bias=True)
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Linear(in_features=256, out_features=512, bias=True)
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+  )
+  (6): Sequential(
+    (0): PreNormResidual(
+      (fn): Sequential(
+        (0): Conv1d(64, 256, kernel_size=(1,), stride=(1,))
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Conv1d(256, 64, kernel_size=(1,), stride=(1,))
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+    (1): PreNormResidual(
+      (fn): Sequential(
+        (0): Linear(in_features=512, out_features=256, bias=True)
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Linear(in_features=256, out_features=512, bias=True)
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+  )
+  (7): Sequential(
+    (0): PreNormResidual(
+      (fn): Sequential(
+        (0): Conv1d(64, 256, kernel_size=(1,), stride=(1,))
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Conv1d(256, 64, kernel_size=(1,), stride=(1,))
+        (4): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+    (1): PreNormResidual(
+      (fn): Sequential(
+        (0): Linear(in_features=512, out_features=40, bias=True)
+        (1): Linear(in_features=40, out_features=256, bias=True)
+        (2): GELU(approximate='none')
+        (3): Dropout(p=0.0, inplace=False)
+        (4): Linear(in_features=256, out_features=40, bias=True)
+        (5): Linear(in_features=40, out_features=512, bias=True)
+        (6): Dropout(p=0.0, inplace=False)
+      )
+      (norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+    )
+  )
+  (8): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+  (9): Reduce('b n c -> b c', 'mean')
+  (10): Linear(in_features=512, out_features=10, bias=True)
+)

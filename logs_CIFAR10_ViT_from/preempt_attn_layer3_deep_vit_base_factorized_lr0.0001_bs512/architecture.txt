@@ -1,0 +1,63 @@
+ViT_factorized(
+  (to_patch_embedding): Sequential(
+    (0): Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1=4, p2=4)
+    (1): Linear(in_features=48, out_features=768, bias=True)
+  )
+  (transformer): Transformer(
+    (layers): ModuleList(
+      (0-2): 3 x ModuleList(
+        (0): Attention(
+          (norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+          (attend): Softmax(dim=-1)
+          (to_q): Linear(in_features=768, out_features=768, bias=False)
+          (to_k): Linear(in_features=768, out_features=768, bias=False)
+          (to_v): Linear(in_features=768, out_features=768, bias=False)
+          (to_out): Linear(in_features=768, out_features=768, bias=False)
+        )
+        (1): FeedForward(
+          (net): Sequential(
+            (0): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+            (1): Linear(in_features=768, out_features=3072, bias=True)
+            (2): GELU(approximate='none')
+            (3): Linear(in_features=3072, out_features=768, bias=True)
+          )
+        )
+      )
+      (3-11): 9 x ModuleList(
+        (0): Attention(
+          (norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+          (attend): Softmax(dim=-1)
+          (to_q): Sequential(
+            (0): Linear(in_features=768, out_features=40, bias=False)
+            (1): Linear(in_features=40, out_features=40, bias=False)
+            (2): Linear(in_features=40, out_features=768, bias=False)
+          )
+          (to_k): Sequential(
+            (0): Linear(in_features=768, out_features=40, bias=False)
+            (1): Linear(in_features=40, out_features=40, bias=False)
+            (2): Linear(in_features=40, out_features=768, bias=False)
+          )
+          (to_v): Sequential(
+            (0): Linear(in_features=768, out_features=40, bias=False)
+            (1): Linear(in_features=40, out_features=40, bias=False)
+            (2): Linear(in_features=40, out_features=768, bias=False)
+          )
+          (to_out): Linear(in_features=768, out_features=768, bias=False)
+        )
+        (1): FeedForward(
+          (net): Sequential(
+            (0): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+            (1): Linear(in_features=768, out_features=3072, bias=True)
+            (2): GELU(approximate='none')
+            (3): Linear(in_features=3072, out_features=768, bias=True)
+          )
+        )
+      )
+    )
+  )
+  (to_latent): Identity()
+  (linear_head): Sequential(
+    (0): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+    (1): Linear(in_features=768, out_features=10, bias=True)
+  )
+)
