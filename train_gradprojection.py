@@ -240,8 +240,6 @@ criterion = nn.CrossEntropyLoss()
 #     optimizer = optim.SGD(net.parameters(), lr=args.lr)
 
 from adam_proj import Adam_proj
-# if args.opt == "adam_proj":
-# optimizer_0 = optim.Adam(net.parameters(), lr=args.lr)
 optimizer = Adam_proj(net.parameters(), lr=args.lr)
 optimizer_warmup = optim.Adam(net.parameters(), lr=args.lr)
     
@@ -275,7 +273,6 @@ with open(os.path.join(exp_dir, 'architecture.txt'), 'w') as f:
 
 def train(epoch):
     print('\nEpoch: %d' % epoch)
-    # net.train()
     train_loss = 0
     correct = 0
     total = 0
@@ -455,7 +452,6 @@ def test(epoch):
 
 list_loss = []
 list_acc = []
-# proj_dict = None
 
 if usewandb:
     wandb.watch(net)
