@@ -74,11 +74,12 @@ class Transformer(nn.Module):
             ]))
     def forward(self, x):
         features_dict = []
-        for layer, (attn, ff) in enumerate(self.layers):
+        for attn, ff in self.layers:
+            features_dict.append(x.mean(dim=0).detach())
             x = attn(x) + x
             # store intermidiate features)
             x = ff(x) + x
-            features_dict[layer] = x.mean(dim=0).detach()
+            # features_dict.append(x.mean(dim=0).detach())
             
         return x, features_dict
 

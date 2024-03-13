@@ -241,13 +241,11 @@ criterion = nn.CrossEntropyLoss()
 
 from adam_proj import Adam_proj
 # if args.opt == "adam_proj":
-# optimizer_0 = optim.Adam(net.parameters(), lr=args.lr)
+optimizer_0 = optim.Adam(net.parameters(), lr=args.lr)
 optimizer = Adam_proj(net.parameters(), lr=args.lr)
-optimizer_warmup = optim.Adam(net.parameters(), lr=args.lr)
     
 # use cosine scheduling
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_epochs)
-scheduler_warmup = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_warmup, args.n_epochs)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_0, args.n_epochs)
 scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 
 # Preempt mode
@@ -272,6 +270,10 @@ with open(os.path.join(exp_dir, 'architecture.txt'), 'w') as f:
 
 
 ##################################### Training #####################################
+stable_rank_all = np.zeros((12, args.warmup_epochs))
+cutoff_rank_all = np.zeros((12, args.warmup_epochs))
+nuclear_norm_all = np.zeros((12, args.warmup_epochs))
+effective_rank_all = np.zeros((12, args.warmup_epochs))
 
 def train(epoch):
     print('\nEpoch: %d' % epoch)
@@ -279,119 +281,58 @@ def train(epoch):
     train_loss = 0
     correct = 0
     total = 0
-
-
-    # if (epoch-args.warmup_epochs) % args.project_freq == 0:
-    #     proj_dict = []
-        # calculate projection matrix
-        # print('Calculating projection matrix..')
-        # feat_dict_running = []
-        # with torch.no_grad():
-            # net.eval()
-            # for batch_idx, (inputs, targets) in enumerate(trainloader):
-            #     inputs, targets = inputs.to(device), targets.to(device)
-            #     outputs, feat_dict = net(inputs)   
-            #     if batch_idx == 0:
-            #         for feat in feat_dict:
-            #             feat_dict_running.append(feat)
-            #     else:
-            #         for layer, feat in enumerate(feat_dict):
-            #             feat_dict_running[layer] += feat_dict_running[layer]*batch_idx/(batch_idx+1) + feat/(batch_idx+1)
-            # ## centralize
-            # for layer in range(args.depth):
-            #     feat_dict_running[layer] -= feat_dict_running[layer].mean(dim=0)
-        
+    svals_all = []
     net.train()
-    
-    if epoch >= args.warmup_epochs:
-        for batch_idx, (inputs, targets) in enumerate(trainloader):
-            inputs, targets = inputs.to(device), targets.to(device)
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            # test with identity projection
-            # for block_idx in range(48):
-            #     if block_idx % 4 == 3:
-            #         proj_dict.append(torch.eye(3072).to(device))
-            #     else:
-            #         proj_dict.append(torch.eye(768).to(device))
-            if batch_idx % args.project_freq == 0:
-                proj_dict = []
-                print('Calculating projection matrix..')
-                for param in net.parameters():
-                    if param.grad is not None:
-                        if param.size() in [torch.Size([768, 3072]), torch.Size([3072, 768]), torch.Size([2304, 768]), torch.Size([768, 768])]:
-                            grad = param.grad
-                            if grad.isnan().any():
-                                print(grad)
-                                exit()
-                            _, _, V = torch.linalg.svd(grad)
-                            proj = V.T[:args.r, :]
-                            proj_dict.append(proj)
-                # for proj in proj_dict:
-                #     print(proj.shape)
-                            
-            optimizer.step(proj_dict)
-            optimizer.zero_grad()
+    for batch_idx, (inputs, targets) in enumerate(trainloader):
+        inputs, targets = inputs.to(device), targets.to(device)
+        outputs = net(inputs)
+        loss = criterion(outputs, targets)
+        loss.backward()
+        layer_idx = 0
+        if batch_idx == 50:
+            print('Calculating projection matrix..')
+            for param in net.parameters():
+                if param.grad is not None:
+                    # print(param.size())
+                    if param.size() in [torch.Size([3072, 768])]:
+                        # if layer_idx in [0, 4, 8, 11]:
+                        grad = param.grad.detach()
+                        # print(param.size(), grad.size())
+                        if grad.isnan().any():
+                            print(grad)
+                            exit()
+                        svals = torch.linalg.svdvals(grad)
+                        # print(svals[:args.r])
 
-            train_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
+                        # compute stable rank
+                        # print(svals[:40])
+                        stable_rank = (svals**2).sum()/(svals[0]**2)
+                        cutoff_rank = (svals/svals[0] >0.01).sum()
+                        nuclear_norm = (svals/svals[0]).sum()
+                        svals_normalized = svals/svals.sum()
+                        effective_rank = torch.exp((-svals_normalized * torch.log(svals_normalized)).sum())
 
-            progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-    
-    else:
-        for batch_idx, (inputs, targets) in enumerate(trainloader):
-            inputs, targets = inputs.to(device), targets.to(device)
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-        
-            optimizer_warmup.step()
-            optimizer_warmup.zero_grad()
+                        stable_rank_all[layer_idx][epoch] = int(stable_rank)
+                        cutoff_rank_all[layer_idx][epoch] = int(cutoff_rank)
+                        nuclear_norm_all[layer_idx][epoch] = int(nuclear_norm)
+                        effective_rank_all[layer_idx][epoch] = int(effective_rank)
 
-            train_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
-
-            progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+                        # print(f"stable rank: {stable_rank}, cutoff rank: {cutoff_rank}, nuclear norm: {nuclear_norm}, effective rank: {effective_rank}")
+                    
+                        layer_idx += 1
             
-    return train_loss/(batch_idx+1)
+        optimizer_0.step()
+        optimizer_0.zero_grad()
 
-        # calculate projection matrix
-        # for feat in feat_dict_running:
-        #     # print(feat.shape)
-        #     _, _, V = torch.linalg.svd(feat)
-        #     svals = torch.linalg.svdvals(feat)
-        #     print(svals)
-        #     proj = V.T[:args.r, :]
-        #     proj_dict.append(proj)
-        
-
-
-
-    # optimizer.zero_grad()
-    # net.train()
-    # for batch_idx, (inputs, targets) in enumerate(trainloader):
-    #     inputs, targets = inputs.to(device), targets.to(device)
-    #     # Train with amp
-    #     # with torch.cuda.amp.autocast(enabled=use_amp):
-    #     outputs, _ = net(inputs)
-    #     loss = criterion(outputs, targets)
-    #     loss.backward()
-    #     # scaler.scale(loss).backward()
-    #     # scaler.step(optimizer)
-    #     # scaler.update()
-    #     if epoch < args.warmup_epochs:
-    #         optimizer_0.step()
-    #         optimizer_0.zero_grad()
-    #     else:
-    #         optimizer.step(proj_dict)
-    #         optimizer.zero_grad()
+        train_loss += loss.item()
+        _, predicted = outputs.max(1)
+        total += targets.size(0)
+        correct += predicted.eq(targets).sum().item()
+        progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+            % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+    
+    return train_loss/(batch_idx+1), stable_rank_all, cutoff_rank_all, nuclear_norm_all, effective_rank_all
+    
 
 ##### Validation
 def test(epoch):
@@ -419,15 +360,6 @@ def test(epoch):
     acc = 100.*correct/total
     if acc > best_acc:
         best_acc = acc
-    # if acc > best_acc:
-    #     print('Saving best model..')
-    #     state = {"model": net.state_dict(),
-    #           "optimizer": optimizer.state_dict(),
-    #           "scaler": scaler.state_dict()}
-    #     # if not os.path.isdir(args.checkpoint_dir):
-    #     #     os.mkdir(args.checkpoint_dir)
-    #     torch.save(state, f'{exp_dir}/{args.net}-{args.patch}-ckpt-best.pth')
-    #     best_acc = acc
     
     if (epoch+1) % args.save_freq == 0:
         print('Saving epoch{} model..'.format(epoch))
@@ -461,15 +393,15 @@ if usewandb:
     wandb.watch(net)
 
 net.cuda()
-for epoch in range(start_epoch, args.n_epochs):
+svals_epochs = []
+for epoch in range(start_epoch, args.warmup_epochs):
     start = time.time()
     trainloss = train(epoch)
+
+
     val_loss, acc = test(epoch)
-    
+
     # if args.net != 'vit_timm':
-    if epoch < args.warmup_epochs:
-        scheduler_warmup.step()
-    # else:
     scheduler.step() # step cosine scheduling
     
     list_loss.append(val_loss)
@@ -489,6 +421,80 @@ for epoch in range(start_epoch, args.n_epochs):
 
     # if args.net == 'vit_timm' and epoch >= args.finetune_epochs-1:
     #     break
+
+with open(os.path.join(exp_dir, f'stable_rank.txt'), 'w') as f:
+    for layer_idx in range(12):
+        f.write(f'\nlayer{layer_idx}\n')
+        f.write(str(stable_rank_all[layer_idx]))
+    f.close()
+with open(os.path.join(exp_dir, f'cutoff_rank.txt'), 'w') as f:
+    for layer_idx in range(12):
+        f.write(f'\nlayer{layer_idx}\n')
+        f.write(str(cutoff_rank_all[layer_idx]))
+    f.close()
+with open(os.path.join(exp_dir, f'nuclear_norm.txt'), 'w') as f:
+    for layer_idx in range(12):
+        f.write(f'\nlayer{layer_idx}\n')
+        f.write(str(nuclear_norm_all[layer_idx]))
+    f.close()
+with open(os.path.join(exp_dir, f'effective_rank.txt'), 'w') as f:
+    for layer_idx in range(12):
+        f.write(f'\nlayer{layer_idx}\n')
+        f.write(str(effective_rank_all[layer_idx]))
+    f.close()
+
+import matplotlib.pyplot as plt
+
+fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+
+# plot stable rank of the 1, 4, 8, 12 layers
+alphas = [0.3, 0.5, 0.7, 1.0]
+for i, layer_idx in enumerate([0, 3, 7, 11]):
+    axs[0, 0].plot(stable_rank_all[layer_idx], label=f'layer{layer_idx+1}', linewidth=2, color='red', alpha=alphas[i])
+
+# plot cutoff rank of the 1, 4, 8, 12 layers
+for i, layer_idx in enumerate([0, 3, 7, 11]):
+    axs[0, 1].plot(cutoff_rank_all[layer_idx], label=f'layer{layer_idx+1}', linewidth=2, color='blue', alpha=alphas[i])
+
+# plot nuclear norm of the 1, 4, 8, 12 layers
+for i, layer_idx in enumerate([0, 3, 7, 11]):
+    axs[1, 0].plot(nuclear_norm_all[layer_idx], label=f'layer{layer_idx+1}', linewidth=2, color='green', alpha=alphas[i])
+
+# plot effective rank of the 1, 4, 8, 12 layers
+for i, layer_idx in enumerate([0, 3, 7, 11]):
+    axs[1, 1].plot(effective_rank_all[layer_idx], label=f'layer{layer_idx+1}', linewidth=2, color='purple', alpha=alphas[i])
+
+# Set titles and labels
+axs[0, 0].set_title('Stable Rank')
+axs[0, 0].set_xlabel('Epoch')
+axs[0, 0].set_ylabel('Rank')
+axs[0, 0].legend(fontsize='large')
+
+axs[0, 1].set_title('Cutoff Rank')
+axs[0, 1].set_xlabel('Epoch')
+axs[0, 1].set_ylabel('Rank')
+axs[0, 1].legend(fontsize='large')
+
+axs[1, 0].set_title('Nuclear Norm')
+axs[1, 0].set_xlabel('Epoch')
+axs[1, 0].set_ylabel('Norm')
+axs[1, 0].legend(fontsize='large')
+
+axs[1, 1].set_title('Effective Rank')
+axs[1, 1].set_xlabel('Epoch')
+axs[1, 1].set_ylabel('Rank')
+axs[1, 1].legend(fontsize='large')
+
+# Adjust spacing between subplots
+plt.tight_layout()
+
+# Save the combined plot
+plt.savefig(os.path.join(exp_dir, 'combined_plots.png'))
+
+
+
+
+
 
 # log best acc
 with open(os.path.join(exp_dir, 'accs.txt'), 'a') as appender:
