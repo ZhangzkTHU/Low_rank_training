@@ -20,11 +20,11 @@ class Adam_proj(Adam):
 					raise RuntimeError("Adam does not support sparse gradients")
 
 				proj = projs[self.block_idx]
-				if p.size() in [torch.Size([768, 3072]), torch.Size([3072, 768]), torch.Size([2304, 768]), torch.Size([768, 768])]:
-					self.block_idx = (self.block_idx+1) % 48
+				if p.size() in [torch.Size([1536, 512]), torch.Size([512, 512])]:
+					self.block_idx = (self.block_idx+1) % 16
 
 				# project only large grads
-				if p.size() in [torch.Size([768, 3072]), torch.Size([3072, 768]), torch.Size([2304, 768]), torch.Size([768, 768])]:
+				if p.size() in [torch.Size([1536, 512]), torch.Size([512, 512])]:
 					grad = grad.mm(proj.T) # grad: (dim_out, dim) @ proj.T: (dim, r) -> (dim_out, r)
 				
 				state = self.state[p]
@@ -61,7 +61,7 @@ class Adam_proj(Adam):
 				# step_size = group["lr"] * _dispatch_sqrt(bias_correction2) / bias_correction1 
 
 				# project back and update
-				if p.size() in [torch.Size([768, 3072]), torch.Size([3072, 768]), torch.Size([2304, 768]), torch.Size([768, 768])]:
+				if p.size() in [torch.Size([1536, 512]), torch.Size([512, 512])]:
 					p.data.add_(torch.div(exp_avg, denom).mm(proj), alpha=-step_size)
 				# # if p.size() in [torch.Size([3072, 768]), torch.Size([2304, 768]), torch.Size([768, 768])]:
 				# # 	p.data.add_(exp_avg.div_(denom).mm(proj), alpha=-step_size)

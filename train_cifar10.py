@@ -59,7 +59,7 @@ parser.add_argument('--preempt', default=False, action='store_true', help='preem
 # parser.add_argument('--lr-scheduler', default='cosine', type=str, help='lr scheduler')
 
 # params for factorization
-parser.add_argument('--r', default=40, type=int, help='factorization rank')
+parser.add_argument('--r', default=64, type=int, help='factorization rank')
 parser.add_argument('--ff-layer', default=None, type=int, help='which ff to be factorized')
 parser.add_argument('--attn-layer', default=None, type=int, help='which attn to be factorized')
 parser.add_argument('--deep', default=False, action='store_true', help='use deep factorization')
@@ -186,29 +186,51 @@ if args.net=="vit_small":
     emb_dropout = 0.1
 )
 elif args.net=="vit_tiny":
-    from models.vit_small import ViT
-    net = ViT(
+    from models.simplevit import SimpleViT
+    net = SimpleViT(
+    image_size = size,
+    patch_size = args.patch,
+    num_classes = 10,
+    dim = 128,
+    depth = 4,
+    heads = 4,
+    mlp_dim = 128,
+)
+elif args.net=="vit_tiny_factorized":
+    from models.simplevit_factorized import SimpleViT_Factorized
+    net = SimpleViT_Factorized(
+    image_size = size,
+    patch_size = args.patch,
+    num_classes = 10,
+    dim = 128,
+    depth = 4,
+    heads = 4,
+    mlp_dim = 128,
+    r=args.r
+)
+elif args.net=="simplevit":
+    from models.simplevit import SimpleViT
+    net = SimpleViT(
     image_size = size,
     patch_size = args.patch,
     num_classes = 10,
     dim = int(args.dimhead),
     depth = 4,
-    heads = 6,
-    mlp_dim = 256,
-    dropout = 0.1,
-    emb_dropout = 0.1
+    heads = 8,
+    mlp_dim = 512
 )
-# elif args.net=="simplevit":
-#     from models.simplevit import SimpleViT
-#     net = SimpleViT(
-#     image_size = size,
-#     patch_size = args.patch,
-#     num_classes = 10,
-#     dim = int(args.dimhead),
-#     depth = args.depth,
-#     heads = 8,
-#     mlp_dim = 512
-# )
+elif args.net=="simplevit_factorized":
+    from models.simplevit_factorized import SimpleViT_Factorized
+    net = SimpleViT_Factorized(
+    image_size = size,
+    patch_size = args.patch,
+    num_classes = 10,
+    dim = int(args.dimhead),
+    depth = 4,
+    heads = 8,
+    mlp_dim = 512,
+    r=args.r
+)
 # elif args.net=="simplevit_orthinit":
 #     from models.SimpleViT_orthinit import SimpleViT
 #     net = SimpleViT(
@@ -437,12 +459,14 @@ def train(epoch):
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device), targets.to(device)
         # Train with amp
-        with torch.cuda.amp.autocast(enabled=use_amp):
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+        # with torch.cuda.amp.autocast(enabled=use_amp):
+        outputs = net(inputs)
+        loss = criterion(outputs, targets)
+        # scaler.scale(loss).backward()
+        # scaler.step(optimizer)
+        # scaler.update()
+        loss.backward()
+        optimizer.step()
         optimizer.zero_grad()
 
         train_loss += loss.item()
@@ -452,6 +476,12 @@ def train(epoch):
 
         progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
             % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
+    content = time.ctime() + ' ' + f'Epoch {epoch}, lr: {optimizer.param_groups[0]["lr"]:.7f}, train loss: {train_loss/(batch_idx+1):.5f}, acc: {(100.*correct/total):.5f}'
+    print(content)
+    with open(os.path.join(exp_dir, 'train.txt'), 'a') as appender:
+        appender.write(content + "\n")
+        
     return train_loss/(batch_idx+1)
 
 ##### Validation
@@ -510,11 +540,12 @@ def test(epoch):
     
     content = time.ctime() + ' ' + f'Epoch {epoch}, lr: {optimizer.param_groups[0]["lr"]:.7f}, val loss: {test_loss:.5f}, acc: {(acc):.5f}'
     print(content)
-    with open(os.path.join(exp_dir, 'accs.txt'), 'a') as appender:
+    with open(os.path.join(exp_dir, 'test.txt'), 'a') as appender:
         appender.write(content + "\n")
     return test_loss, acc
 
 list_loss = []
+list_trainloss = []
 list_acc = []
 
 if usewandb:
@@ -529,6 +560,7 @@ for epoch in range(start_epoch, args.n_epochs):
     # if args.net != 'vit_timm':
     scheduler.step() # step cosine scheduling
     
+    list_trainloss.append(trainloss)
     list_loss.append(val_loss)
     list_acc.append(acc)
     
@@ -540,6 +572,7 @@ for epoch in range(start_epoch, args.n_epochs):
     # Write out csv..
     with open(os.path.join(exp_dir, f'{args.net}_patch{args.patch}.csv'), 'w') as f:
         writer = csv.writer(f, lineterminator='\n')
+        writer.writerow(list_trainloss)
         writer.writerow(list_loss) 
         writer.writerow(list_acc) 
     print(list_loss)
@@ -548,7 +581,7 @@ for epoch in range(start_epoch, args.n_epochs):
     #     break
 
 # log best acc
-with open(os.path.join(exp_dir, 'accs.txt'), 'a') as appender:
+with open(os.path.join(exp_dir, 'test.txt'), 'a') as appender:
     appender.write(str(best_acc))
 # writeout wandb
 if usewandb:

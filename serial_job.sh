@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4    # <- match to OMP_NUM_THREADS
-#SBATCH --partition=gpuA40x4     # <- or one of: cpu gpuA100x4 gpuA40x4 gpuA100x8 gpuMI100x8
+#SBATCH --partition=gpuA40x4-preempt    # <- or one of: cpu gpuA100x4 gpuA40x4 gpuA100x8 gpuMI100x8
 #SBATCH --account=bcel-delta-gpu
 #SBATCH --job-name=lora_training
 #SBATCH --time=04:00:00      # hh:mm:ss for the job
@@ -44,4 +44,24 @@ source activate /u/zzhang14/.conda/envs/pytorch
 
 
 # srun python train_gradprojection.py --log-dir logs_projgrad --exp-name r128_freq10_warmup10 --net vit_base --r 128 --project-freq 10 --warmup-epochs 10 --preempt
-srun python train_check_rank.py --log-dir logs_checkrank --exp-name ff --net vit_base --warmup-epochs 20
+# srun python train_check_rank.py --log-dir logs_checkrank --exp-name ff --net vit_base --warmup-epochs 20
+
+# srun python train_cifar10.py --log-dir logs_CIFAR10_simpleViT --exp-name baseline --net simplevit --preempt --n_epochs 100
+# srun python train_gradprojection.py --log-dir logs_CIFAR10_simpleViT --exp-name GaLore_r16_freq20 --net simplevit --r 16 --project-freq 20 --warmup-epochs 0 --preempt --n_epochs 100 --lr 1e-3
+# srun python train_cifar10.py --log-dir logs_CIFAR10_simpleViT --exp-name Factorized_r8 --r 8 --net simplevit_factorized --preempt --n_epochs 200 --lr 1e-3
+
+# srun python train_relora.py --log-dir logs_CIFAR10_simpleViT --exp-name Relora_r16_freq5 --net simplevit --r 16 --merge-freq 5 --n_epochs 100 --preempt --lr 1e-3
+
+
+
+
+# exps on ViTtiny
+# srun python train_cifar10.py --log-dir logs_CIFAR10_ViTtiny --exp-name baseline --net vit_tiny --preempt --n_epochs 200 --lr 1e-3
+srun python train_cifar10.py --log-dir logs_CIFAR10_ViTtiny --exp-name Factorized_r8 --net vit_tiny_factorized --n_epochs 200 --lr 5e-3 --r 8
+# srun python train_relora.py --log-dir logs_CIFAR10_ViTtiny_testinit --exp-name Relora_r8_freq5 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --preempt --lr 1e-3
+# srun python train_relora.py --log-dir logs_CIFAR10_ViTtiny --exp-name Relora_r8_freq5 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3
+# srun python train_gradprojection.py --log-dir logs_CIFAR10_ViTtiny --exp-name GaLore_r8_freq20 --net vit_tiny --r 8 --project-freq 20 --warmup-epochs 0 --preempt --n_epochs 200 --lr 1e-3
+
+
+
+# srun python train_relora_grad.py --log-dir logs_CIFAR10_ViTtiny --exp-name ReloraGrad_r8_freq2_initVbyr --net vit_tiny --r 8 --merge-freq 2 --n_epochs 200 --lr 1e-3 --preempt
