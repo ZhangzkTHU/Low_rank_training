@@ -1,0 +1,5 @@
+Tue Apr  9 05:06:06 2024 Epoch 0, lr: 0.0050000, val loss: 184.25269, acc: 30.78000
+Tue Apr  9 05:06:34 2024 Epoch 1, lr: 0.0049997, val loss: 173.86185, acc: 36.94000
+Tue Apr  9 05:07:02 2024 Epoch 2, lr: 0.0049988, val loss: 159.19777, acc: 43.03000
+Tue Apr  9 05:07:30 2024 Epoch 3, lr: 0.0049972, val loss: 154.40142, acc: 44.53000
+Tue Apr  9 05:07:57 2024 Epoch 4, lr: 0.0049951, val loss: 147.25472, acc: 47.13000

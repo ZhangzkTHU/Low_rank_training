@@ -67,6 +67,7 @@ parser.add_argument('--merge-freq', default=10, type=int, help='merge and reinit
 parser.add_argument('--correct-coef-A', default=0.1, type=float, help='correct coef for A matrix')
 parser.add_argument('--correct-coef-B', default=0.1, type=float, help='correct coef for B matrix')
 parser.add_argument('--correct-scheduling', default=None, type=str, help='correct coef scheduling')
+parser.add_argument('--reset-optimizer', default=False, action='store_true', help='reset optimizer')
 
 
 
@@ -184,7 +185,6 @@ elif args.net=="vit_tiny":
         target_modules=["transformer"],
         r=args.r,
         lora_dropout=0,
-        correct_coef=args.correct_coef,
 )
 # elif args.net=="simplevit":
 #     from models.simplevit import SimpleViT
@@ -433,7 +433,11 @@ with open(os.path.join(exp_dir, 'architecture.txt'), 'w') as f:
 def train(epoch):
     print('\nEpoch: %d' % epoch)
     net.train()
-    if epoch % args.merge_freq == 0:
+    train_loss = 0
+    correct = 0
+    total = 0
+    
+    if (epoch) % args.merge_freq == 0:
         print("Merging")
         net.merge()
         for batch_idx, (inputs, targets) in enumerate(trainloader):
@@ -441,18 +445,15 @@ def train(epoch):
             inputs, targets = inputs.to(device), targets.to(device)
             loss = criterion(net(inputs), targets)
             loss.backward()
+            # break
         print("Reinitializing")
         net.reinit()
-        correct_coef_A1 = args.correct_coef_A
-        correct_coef_B1 = args.correct_coef_B
         optimizer.zero_grad()
 
-        # TODO: store full gradients for grad correction
+        for group in optimizer.param_groups:
+            for p in group['params']:
+                optimizer.state[p] = {}
 
-
-    train_loss = 0
-    correct = 0
-    total = 0
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device), targets.to(device)
         # Train with amp
@@ -463,14 +464,18 @@ def train(epoch):
 
         # calculate correction coefficient with scheduling
         if args.correct_scheduling == "linear":
-            correct_coef_A1 = args.correct_coef_A * (1 - (batch_idx) / (len(trainloader)*args.merge_freq))
-            correct_coef_B1 = args.correct_coef_B * (1 - (batch_idx) / (len(trainloader)*args.merge_freq))
+            correct_coef_A1 = args.correct_coef_A * (1 - (batch_idx + len(trainloader)* (epoch%args.merge_freq)) / (len(trainloader)*args.merge_freq))
+            correct_coef_B1 = args.correct_coef_B * (1 - (batch_idx + len(trainloader)* (epoch%args.merge_freq)) / (len(trainloader)*args.merge_freq))
         elif args.correct_scheduling == "cosine":
-            correct_coef_A1 = args.correct_coef_A * (1 + np.cos(np.pi * (batch_idx) / (len(trainloader)*args.merge_freq))) / 2
-            correct_coef_B1 = args.correct_coef_B * (1 + np.cos(np.pi * (batch_idx) / (len(trainloader)*args.merge_freq))) / 2
+            correct_coef_A1 = args.correct_coef_A * (1 + np.cos(np.pi * (batch_idx + len(trainloader) * (epoch%args.merge_freq)) / (len(trainloader)*args.merge_freq))) / 2
+            correct_coef_B1 = args.correct_coef_B * (1 + np.cos(np.pi * (batch_idx + len(trainloader) * (epoch%args.merge_freq)) / (len(trainloader)*args.merge_freq))) / 2
+        # elif args.correct_scheduling == "warmshart": # increase quickly from 0 to 1
+        #     correct_coef_A1 = args.correct_coef_A * (1 - np.exp(-5 * (batch_idx + len(trainloader)* epoch) / (len(trainloader)*args.merge_freq)))
+        else:
+            correct_coef_A1 = args.correct_coef_A
+            correct_coef_B1 = args.correct_coef_B
 
         net.correct_grad(correct_coef_A1, 1-correct_coef_A1, correct_coef_B1, 1-correct_coef_B1)
-
       
         optimizer.step()
         optimizer.zero_grad()
@@ -489,6 +494,7 @@ def train(epoch):
     # if (epoch+1) % args.merge_freq == 0:
     #     print("Merging and Reinitializing")
     #     net.merge_and_reinit()
+
     
     content = time.ctime() + ' ' + f'Epoch {epoch}, lr: {optimizer.param_groups[0]["lr"]:.7f}, train loss: {train_loss/(batch_idx+1):.5f}, acc: {(100.*correct/total):.5f}'
     print(content)

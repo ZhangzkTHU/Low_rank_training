@@ -326,9 +326,10 @@ class ReLoRaLinear(nn.Module):
 
     @torch.no_grad()
     def correct_grad(self):
-        self.lora_A.weight.grad.data = self.correct_coef * self.lora_B.weight.grad.data.T @ self.full_grad + (1-self.correct_coef) * self.lora_A.weight.grad.data
-        self.lora_B.weight.grad.data = self.correct_coef * self.full_grad @ self.lora_A.weight.grad.data.T + (1-self.correct_coef) * self.lora_B.weight.grad.data
-
+        self.lora_A.weight.grad.data = self.correct_coef * self.lora_B.weight.data.T @ self.full_grad + (1-self.correct_coef) * self.lora_A.weight.grad.data
+        self.lora_B.weight.grad.data = self.correct_coef * self.full_grad @ self.lora_A.weight.data.T + (1-self.correct_coef) * self.lora_B.weight.grad.data
+        # self.lora_A.weight.grad.data = self.correct_coef * self.lora_B.weight.grad.data.T @ self.full_grad + (1-self.correct_coef) * self.lora_A.weight.grad.data
+        # self.lora_B.weight.grad.data = self.correct_coef * self.full_grad @ self.lora_A.weight.grad.data.T + (1-self.correct_coef) * self.lora_B.weight.grad.data
 
     def forward(self, x: torch.Tensor):
         if self.lora_only:

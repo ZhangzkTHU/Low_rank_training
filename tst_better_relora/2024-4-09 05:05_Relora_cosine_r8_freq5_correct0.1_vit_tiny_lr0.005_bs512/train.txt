@@ -1,0 +1,5 @@
+Tue Apr  9 05:05:58 2024 Epoch 0, lr: 0.0050000, train loss: 2.07779, acc: 22.92400
+Tue Apr  9 05:06:26 2024 Epoch 1, lr: 0.0049997, train loss: 1.85458, acc: 31.18200
+Tue Apr  9 05:06:54 2024 Epoch 2, lr: 0.0049988, train loss: 1.70101, acc: 37.31800
+Tue Apr  9 05:07:22 2024 Epoch 3, lr: 0.0049972, train loss: 1.60743, acc: 41.14600
+Tue Apr  9 05:07:49 2024 Epoch 4, lr: 0.0049951, train loss: 1.55986, acc: 43.36600

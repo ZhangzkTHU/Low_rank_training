@@ -33,7 +33,7 @@ source activate /u/zzhang14/.conda/envs/pytorch
 # srun python train_cifar10.py --log-dir logs_from --exp-name attn_layer1_deep --attn-layer 1 --deep --net vit_base_factorized --preempt --r 40 
 # srun python train_cifar10.py --log-dir logs_from --exp-name baseline --net vit_base --preempt
 
-nohup python train_cifar10.py --log-dir tst --exp-name 114514 --deep --net vit_tiny --r 8 &
+# nohup python train_cifar10.py --log-dir tst --exp-name 114514 --deep --net vit_tiny --r 8 &
 
 ## mlpmixer exps
 # srun python train_cifar10.py --log-dir logs_mlpmixer --exp-name baseline --net mlpmixer --preempt --n_epochs 500 --save-freq 100 --lr 1e-3
@@ -60,10 +60,24 @@ nohup python train_cifar10.py --log-dir tst --exp-name 114514 --deep --net vit_t
 # srun python train_cifar10.py --log-dir logs_CIFAR10_ViTtiny --exp-name Factorized_r8 --net vit_tiny_factorized --n_epochs 200 --lr 5e-3 --r 8
 # srun python train_relora.py --log-dir logs_CIFAR10_ViTtiny_testinit --exp-name Relora_r8_freq5 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --preempt --lr 1e-3
 # srun python train_relora.py --log-dir logs_CIFAR10_ViTtiny --exp-name Relora_r8_freq5 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3
-# srun python train_gradprojection.py --log-dir logs_CIFAR10_ViTtiny --exp-name GaLore_r8_freq20 --net vit_tiny --r 8 --project-freq 20 --warmup-epochs 0 --preempt --n_epochs 200 --lr 1e-3
+# srun python train_gradprojection.py --log-dir logs_CIFAR10_ViTtiny --exp-name GaLore_r8_freq20_run2 --net vit_tiny --r 8 --project-freq 20 --warmup-epochs 0 --n_epochs 200 --lr 1e-3
 
 
 
-# srun python train_gradcorrection.py --log-dir logs_CIFAR10_ViTtiny_correction --exp-name Relora_r8_freq5_correct0.2run4 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3 --correct-coef 0.2
+# srun python train_gradcorrection.py --log-dir logs_CIFAR10_ViTtiny_correction_new --exp-name Relora_r8_freq5_correct0.001 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3 --correct-coef 0.001
+# srun python train_gradcorrection_scheduling.py --log-dir logs_CIFAR10_ViTtiny_correction_scheduling_new --exp-name Relora_cosine_r8_freq5_correct0.1_run3 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3 --correct-coef-A 0.1 --correct-coef-B 0.1 --correct-scheduling cosine
+# srun python train_CIFAR10_testing.py --log-dir tst_better_relora --exp-name Relora_cosine_r8_freq5_correct0.1 --net vit_tiny --r 8 --merge-freq 10 --n_epochs 200 --lr 1e-3
 
-# srun python train_gradcorrection_ablation.py --log-dir logs_CIFAR10_ViTtiny_correction_randominit --exp-name Relora_r8_freq5_correct0.1_run4 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3 --correct-coef 0.1
+
+# python train_gradfactorization.py --log-dir tst_factorization --exp-name GaLore_randproject_r8_freq20 --net vit_tiny --r 32 --project-freq 20 --warmup-epochs 0 --n_epochs 200 --lr 1e-3
+
+
+
+
+# exps of changing r
+# srun python train_relora_changingr.py --log-dir logs_CIFAR10_ViTtiny_changer --exp-name Relora_r32_freq5 --net vit_tiny --r 32 --merge-freq 5 --n_epochs 200 --lr 5e-3
+srun python train_relora.py --log-dir logs_CIFAR10_ViTtiny_changer --exp-name Relora400epoch_warmstart_r8_freq10 --net vit_tiny --r 8 --merge-freq 10 --n_epochs 400 --lr 5e-3
+
+# srun python train_plotrank.py --log-dir logs_compute_rank --exp-name compute_rank --net vit_tiny --compute-freq 5 --n_epochs 200 --lr 1e-3
+
+# srun python train_gradcorrection_scheduling.py --log-dir logs_CIFAR10_ViTtiny_correction_scheduling_new --exp-name Relora_resetoptim_cosine_r8_freq5_correct0.1 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3 --correct-coef-A 0.1 --correct-coef-B 0.1 --correct-scheduling cosine

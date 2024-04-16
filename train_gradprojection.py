@@ -326,14 +326,19 @@ def train(epoch):
                 print('Calculating projection matrix..')
                 for param in net.parameters():
                     if param.grad is not None:
-                        if param.size() in [torch.Size([256, 128]), torch.Size([768, 128]), torch.Size([128, 128])]:
+                        if param.size() in [torch.Size([128, 256]), torch.Size([768, 128]), torch.Size([128, 128])]:
                             grad = param.grad
                             if grad.isnan().any():
                                 print(grad)
                                 exit()
                             _, _, V = torch.linalg.svd(grad)
                             proj = V.T[:args.r, :]
+
+                            # use random orthogonal projection
+                            # proj = torch.linalg.qr(torch.randn(grad.shape).T)[0]
+                            # proj = proj.T[:args.r, :].to(device)
                             proj_dict.append(proj)
+                            # print(proj.shape)
                 # for proj in proj_dict:
                 #     print(proj.shape)
                             

@@ -156,9 +156,11 @@ class ReLoRaModel(torch.nn.Module):
             if isinstance(module, ReLoRaLinear):
                 grad = module.weight.grad.detach()
                 module.full_grad = grad
-                U, _, V = torch.linalg.svd(grad)
+                # U, _, VT = torch.linalg.svd(grad)
+                # module.U = U[:, :self.r]
+                # module.V = VT.T[:, :self.r]
                 # print(grad.shape, U.shape, V.shape)
-                module.reinit(init_U=U[:, :self.r], init_V=V[:self.r, :], eps=eps)
+                module.reinit()
                 # print(module.lora_A.weight.shape, V[:self.r, :].shape,  module.lora_B.weight.shape, U[:, :self.r].shape)
 
 
@@ -242,6 +244,8 @@ class ReLoRaLinear(nn.Module):
 
             # if quantize is None:
             self.weight = nn.Parameter(weight_data, requires_grad=False)
+            # self.U = torch.zeros((out_features, r), device=device, dtype=dtype, requires_grad=False)
+            # self.V = torch.zeros((in_features, r), device=device, dtype=dtype, requires_grad=False)
             self.full_grad = torch.zeros_like(weight_data, requires_grad=False)
             # elif quantize == "4bit":
             #     self.weight = bnb.nn.Params4bit(
@@ -308,11 +312,12 @@ class ReLoRaLinear(nn.Module):
         self.lora_B.weight.requires_grad = False
 
     @torch.no_grad()
-    def reinit(self, init_U, init_V, eps=1e-6):
-        self.lora_B.weight.data = 0 * init_U
+    def reinit(self):
         ## TODO: test initialization of B: zero or eps?
         # self.lora_A.weight.data = init_V * math.sqrt(2/self.lora_A.weight.shape[1])
-        self.lora_A.weight.data = init_V * math.sqrt(2/self.r)
+        # self.lora_A.weight.data = init_V * math.sqrt(2/self.r)
+        nn.init.kaiming_uniform_(self.lora_A.weight, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B.weight)
         self.weight.requires_grad = False
         self.lora_A.weight.requires_grad = True
         self.lora_B.weight.requires_grad = True
@@ -323,6 +328,13 @@ class ReLoRaLinear(nn.Module):
     def correct_grad(self, correct_coef_A1, correct_coef_A2, correct_coef_B1, correct_coef_B2): # a better way of modifying the correct_coefs
         self.lora_A.weight.grad.data = correct_coef_A1 * self.lora_B.weight.grad.data.T @ self.full_grad + correct_coef_A2 * self.lora_A.weight.grad.data
         self.lora_B.weight.grad.data = correct_coef_B1 * self.full_grad @ self.lora_A.weight.grad.data.T + correct_coef_B2 * self.lora_B.weight.grad.data
+        # self.lora_A.weight.grad.data = correct_coef_A1 * self.lora_B.weight.data.T @ self.full_grad + correct_coef_A2 * self.lora_A.weight.grad.data
+        # self.lora_B.weight.grad.data = correct_coef_B1 * self.full_grad @ self.lora_A.weight.data.T + correct_coef_B2 * self.lora_B.weight.grad.data
+        # print(self.lora_A.weight.grad.data.shape, self.U.shape, self.V.shape, self.lora_B.weight.grad.data.shape)
+        # self.U = self.U.to(self.lora_A.weight.device)
+        # self.V = self.V.to(self.lora_B.weight.device)
+        # self.lora_A.weight.grad.data = correct_coef_A1 * self.lora_A.weight.grad.data @ self.V @ self.V.T + correct_coef_A2 * self.lora_A.weight.grad.data
+        # self.lora_B.weight.grad.data = correct_coef_B1 * self.U @ self.U.T @ self.lora_B.weight.grad.data + correct_coef_B2 * self.lora_B.weight.grad.data
 
 
     def forward(self, x: torch.Tensor):

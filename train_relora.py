@@ -478,6 +478,15 @@ def train(epoch):
         # scaler.step(optimizer)
         # scaler.update()
         loss.backward()
+        
+        # warmstart every merge
+        if epoch % args.merge_freq == 0:
+            warmstart_coef = min(0.1 * batch_idx, 1)
+        # multiply warmstart coef to grads
+            for name, param in net.named_parameters():
+                if 'lora' in name:
+                    param.grad *= warmstart_coef
+
         optimizer.step()
         optimizer.zero_grad()
         # if batch_idx % args.merge_freq == 0:
@@ -495,6 +504,9 @@ def train(epoch):
     if (epoch+1) % args.merge_freq == 0:
         print("Merging and Reinitializing")
         net.merge_and_reinit()
+        for group in optimizer.param_groups:
+            for p in group['params']:
+                optimizer.state[p] = {}
     
     content = time.ctime() + ' ' + f'Epoch {epoch}, lr: {optimizer.param_groups[0]["lr"]:.7f}, train loss: {train_loss/(batch_idx+1):.5f}, acc: {(100.*correct/total):.5f}'
     print(content)
