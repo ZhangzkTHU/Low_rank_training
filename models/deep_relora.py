@@ -24,6 +24,7 @@ class ReLoRaConfig:
     keep_original_weights: bool
     lora_only: bool = False
     trainable_scaling: bool = False
+    min_rank: float = 0.5
     # quantize: str = None
     # use_double_quant: bool = False
 
@@ -59,6 +60,8 @@ class ReLoRaModel(torch.nn.Module):
         keep_original_weights=True,
         lora_only=False,
         trainable_scaling=False,
+        min_rank=0.5,
+        adaptive_metric=None,
         # quantize=None,
         # use_double_quant=False,
     ):
@@ -74,6 +77,9 @@ class ReLoRaModel(torch.nn.Module):
         self.keep_original_weights = keep_original_weights
         self.lora_only = lora_only
         self.trainable_scaling = trainable_scaling
+        self.min_rank = min_rank
+        self.adaptive_metric = adaptive_metric
+        
 
         self._config = ReLoRaConfig(
             r=r,
@@ -123,9 +129,10 @@ class ReLoRaModel(torch.nn.Module):
             )
             if self.keep_original_weights:
                 # make lora'ed network to be exacty the same as the original network at initialization
-                # !!!!!!
+
+                ### !!!!!!!
                 # nn.init.zeros_(new_module.lora_A.weight)
-                # !!!!!!
+                
                 assert new_module.lora_A.bias is None
                 assert new_module.lora_B.bias is None
 
@@ -148,9 +155,67 @@ class ReLoRaModel(torch.nn.Module):
         return parent
 
     def merge_and_reinit(self):
+        # calculate rank by numerical rank
+        score = []
+        mem = 0
         for module in self.modules():
             if isinstance(module, ReLoRaLinear):
-                module.merge_and_reinit()
+                delta = module.lora_B.weight @ module.lora_A.weight
+                svals = torch.linalg.svdvals(delta)
+
+                if self.adaptive_metric == 'numerical_rank':
+                    for i in range(len(svals)):
+                        if svals.cumsum(0)[i] / svals.sum() > 0.95:
+                            break
+                    score.append(max(i, self.min_rank * self.r)) # make the rank at least half of the preseted rank
+                    mem += module.in_features * i + i * module.out_features
+                elif self.adaptive_metric == 'effective_rank':
+                    svals = svals / svals.sum()
+                    eff_rank = float(torch.exp(-torch.sum(svals * torch.log(svals+1e-8))))
+                    score.append(eff_rank) # no need of min_rank constraint for effective rank???
+                    mem += module.in_features * eff_rank + eff_rank * module.out_features
+                elif self.adaptive_metric == 'stable_rank':
+                    stable_rank = float(torch.sum(svals**2) / svals[0]**2)
+                    score.append(max(stable_rank, self.min_rank * self.r))
+                    mem += module.in_features * stable_rank + stable_rank * module.out_features
+                elif self.adaptive_metric == 'importance_score':
+                    # TODO: implement importance score
+                    # A_importance = module.lora_A.weight * module.lora_A.weight.grad
+                    # B_importance = module.lora_B.weight * module.lora_B.weight.grad
+                    # importance_score = B_importance.sum(dim=0) @ A_importance.sum(dim=1)
+                    # score.append(importance_score)
+                    # mem += module.in_features * importance_score + importance_score * module.out_features
+                    raise NotImplementedError("importance_score is not implemented yet.")
+                else:
+                    raise ValueError(f"Unknown adaptive metric: {self.adaptive_metric}")
+        
+        ratio = sum([(module.in_features + module.out_features) * self.r for module in self.modules() if isinstance(module, ReLoRaLinear)]) / mem
+        # ranks = [round(s * ratio) for s in score]
+        ranks = [int(s * ratio) for s in score]
+
+        # TODO: calculate rank by importance score
+        # for module in self.modules():
+        #     if isinstance(module, ReLoRaLinear):
+        #         delta = module.lora_B.weight @ module.lora_A.weight
+        #         svals = torch.linalg.svdvals(delta)
+        #         for i in range(len(svals)):
+        #             if svals.cumsum(0)[i] / svals.sum() > 0.95:
+        #                 break
+        #         i = max(i, self.min_rank * self.r) # make the rank at least half of the preseted rank
+        #         score.append(i)
+        #         mem += module.in_features * i + i * module.out_features
+        
+        ratio = sum([(module.in_features + module.out_features) * self.r for module in self.modules() if isinstance(module, ReLoRaLinear)]) / mem
+        # ranks = [round(s * ratio) for s in score]
+        ranks = [int(s * ratio) for s in score]
+        
+        module_idx = 0
+        for module in self.modules():
+            if isinstance(module, ReLoRaLinear):
+                module.merge_and_reinit(ranks[module_idx])
+                module_idx += 1
+
+        return ranks
 
     def save_pretrained(self, path):
         self.wrapped_model.save_pretrained(path)
@@ -257,6 +322,7 @@ class ReLoRaLinear(nn.Module):
             nn.init.kaiming_uniform_(self.lora_A.weight, a=math.sqrt(5))
             self.lora_B = nn.Linear(r, out_features, bias=False)
             nn.init.zeros_(self.lora_B.weight)
+            self.lora_S = nn.Linear(r, r, bias=False)
             if trainable_scaling:
                 self.scaling = nn.Parameter(torch.tensor([1.]), requires_grad=True)
             else:
@@ -273,43 +339,19 @@ class ReLoRaLinear(nn.Module):
         return self.scaling
 
     @torch.no_grad()
-    def merge_and_reinit(self):
+    def merge_and_reinit(self, rank):
         if self.lora_only:
             print("WARNING: Skipping merge and reinit, because only lora parameters are used")
             return
 
-        # if not self.quantize:
-        self.weight.data += self.lora_B.weight @ self.lora_A.weight * self._post_lora_scale()
-        # elif self.quantize == "4bit":
-        #     self.weight: bnb.nn.Params4bit
-        #     _weight_fp = torch.empty(self.weight.data.shape, dtype=self.lora_B.weight.dtype, device=self.weight.data.device)
-        #     bnbF.dequantize_4bit(self.weight.data, self.weight.quant_state, out=_weight_fp)
-        #     _weight_fp += self.lora_B.weight @ self.lora_A.weight * self._post_lora_scale()
-        #     self.weight.data, self.weight.quant_state = bnbF.quantize_4bit(
-        #         _weight_fp,
-        #         quant_type=self.weight.quant_type,
-        #         compress_statistics=self.weight.compress_statistics,
-        #     )
-        #     del _weight_fp
-        # elif self.quantize == "8bit":
-        #     self.weight: bnb.nn.Int8Params
-        #     _weight_fp = torch.empty(self.weight.data.shape, dtype=torch.bfloat16, device=self.weight.data.device)
-        #     # !out assigned inplace
-        #     bnbF.dequantize_blockwise(self.weight.data, self.self.lora_B.weight.dtype, out=_weight_fp)
-        #     _weight_fp += self.lora_B.weight @ self.lora_A.weight * self._post_lora_scale()
-        #     self.weight.data, self.weight.quant_state = bnbF.quantize_blockwise(
-        #         _weight_fp,
-        #         self.weight.quant_state,
-        #         out=self.weight.data,
-        #     )
-        #     del _weight_fp
-        # else:
-        #     raise ValueError(f"Unknown quantize type: {self.quantize}")
-
+        current_device = self.lora_A.weight.device
+        # print(current_device)
+        self.weight.data += self.lora_B.weight @ self.lora_S.weight @ self.lora_A.weight * self._post_lora_scale()
+        self.lora_A.weight.data = torch.zeros((rank, self.in_features), device=current_device)
+        self.lora_B.weight.data = torch.zeros((self.out_features, rank), device=current_device)
+        self.lora_S.weight.data = torch.eye((rank, rank), device=current_device)
         nn.init.kaiming_uniform_(self.lora_A.weight, a=math.sqrt(5))
-        # TODO: init by SVD of full grad
 
-        nn.init.zeros_(self.lora_B.weight)
         if self.trainable_scaling:
             nn.init.zeros_(self.scaling)
 
@@ -326,5 +368,5 @@ class ReLoRaLinear(nn.Module):
         result = F.linear(x, self.weight, bias=self.bias)
 
         if self.r > 0:
-            result += self.lora_B(self.lora_A(self.lora_dropout(x))) * self._post_lora_scale()
+            result += self.lora_B(self.lora_S(self.lora_A(self.lora_dropout(x)))) * self._post_lora_scale()
         return result

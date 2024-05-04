@@ -26,7 +26,6 @@ echo "job is starting on `hostname`"
 
 source activate /u/zzhang14/.conda/envs/pytorch
 
-
 ## ViT exps
 # srun python train_cifar10.py --log-dir logs_new --exp-name ff_layer6_deep --ff-layer 6 --deep --net vit_base_factorized --preempt --r 40 
 # srun python train_cifar10.py --log-dir logs_from --exp-name ff_layer3 --ff-layer 3 --net vit_base_factorized --preempt --r 40 
@@ -76,8 +75,18 @@ source activate /u/zzhang14/.conda/envs/pytorch
 
 # exps of changing r
 # srun python train_relora_changingr.py --log-dir logs_CIFAR10_ViTtiny_changer --exp-name Relora_r32_freq5 --net vit_tiny --r 32 --merge-freq 5 --n_epochs 200 --lr 5e-3
-srun python train_relora.py --log-dir logs_CIFAR10_ViTtiny_changer --exp-name Relora400epoch_warmstart_r8_freq10 --net vit_tiny --r 8 --merge-freq 10 --n_epochs 400 --lr 5e-3
+# srun python train_relora.py --log-dir logs_CIFAR10_ViTtiny_adaptiverank --exp-name Baseline_r16_freq5 --net vit_tiny --r 16 --merge-freq 5 --n_epochs 200 --lr 5e-3
 
 # srun python train_plotrank.py --log-dir logs_compute_rank --exp-name compute_rank --net vit_tiny --compute-freq 5 --n_epochs 200 --lr 1e-3
 
 # srun python train_gradcorrection_scheduling.py --log-dir logs_CIFAR10_ViTtiny_correction_scheduling_new --exp-name Relora_resetoptim_cosine_r8_freq5_correct0.1 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3 --correct-coef-A 0.1 --correct-coef-B 0.1 --correct-scheduling cosine
+
+
+# python train_relora_rankallocation.py --log-dir logs_CIFAR10_ViTtiny_rankallocation --exp-name Relora_warmstart_r8to64_freq5 --net vit_tiny --r 8 --merge-freq 5 --n_epochs 200 --lr 5e-3
+
+
+# srun python train_relora_rankallocation.py --log-dir logs_CIFAR10_ViTtiny_adaptiverank --exp-name Stablerank_r16_freq5_minr0.25 --net vit_tiny --r 16 --merge-freq 5 --n_epochs 200 --lr 5e-3 --min-rank 0.25 --adaptive-metric stable_rank
+
+# python train_relora_rankallocation.py --log-dir tst --exp-name Relora_effrank_r16_freq5_minr0.25 --net vit_tiny --r 16 --merge-freq 5 --n_epochs 200 --lr 5e-3 --min-rank 0.25 --adaptive-metric effective_rank
+
+srun python train_relora_rankallocation.py --log-dir logs_CIFAR10_ViTtiny_adaptiverank --exp-name Predefined_r16_freq5 --net vit_tiny --r 16 --merge-freq 5 --n_epochs 200 --lr 5e-3

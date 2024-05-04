@@ -1,0 +1,145 @@
+ReLoRaModel(
+  (wrapped_model): SimpleViT(
+    (to_patch_embedding): Sequential(
+      (0): Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1=4, p2=4)
+      (1): Linear(in_features=48, out_features=128, bias=True)
+    )
+    (transformer): Transformer(
+      (layers): ModuleList(
+        (0): ModuleList(
+          (0): Attention(
+            (norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+            (attend): Softmax(dim=-1)
+            (to_qkv): ReLoRaLinear(
+              (lora_dropout): Dropout(p=0, inplace=False)
+              (lora_A): Linear(in_features=128, out_features=8, bias=False)
+              (lora_B): Linear(in_features=8, out_features=768, bias=False)
+            )
+            (to_out): ReLoRaLinear(
+              (lora_dropout): Dropout(p=0, inplace=False)
+              (lora_A): Linear(in_features=256, out_features=8, bias=False)
+              (lora_B): Linear(in_features=8, out_features=128, bias=False)
+            )
+          )
+          (1): FeedForward(
+            (net): Sequential(
+              (0): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+              (1): ReLoRaLinear(
+                (lora_dropout): Dropout(p=0, inplace=False)
+                (lora_A): Linear(in_features=128, out_features=8, bias=False)
+                (lora_B): Linear(in_features=8, out_features=128, bias=False)
+              )
+              (2): GELU(approximate='none')
+              (3): ReLoRaLinear(
+                (lora_dropout): Dropout(p=0, inplace=False)
+                (lora_A): Linear(in_features=128, out_features=8, bias=False)
+                (lora_B): Linear(in_features=8, out_features=128, bias=False)
+              )
+            )
+          )
+        )
+        (1): ModuleList(
+          (0): Attention(
+            (norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+            (attend): Softmax(dim=-1)
+            (to_qkv): ReLoRaLinear(
+              (lora_dropout): Dropout(p=0, inplace=False)
+              (lora_A): Linear(in_features=128, out_features=16, bias=False)
+              (lora_B): Linear(in_features=16, out_features=768, bias=False)
+            )
+            (to_out): ReLoRaLinear(
+              (lora_dropout): Dropout(p=0, inplace=False)
+              (lora_A): Linear(in_features=256, out_features=16, bias=False)
+              (lora_B): Linear(in_features=16, out_features=128, bias=False)
+            )
+          )
+          (1): FeedForward(
+            (net): Sequential(
+              (0): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+              (1): ReLoRaLinear(
+                (lora_dropout): Dropout(p=0, inplace=False)
+                (lora_A): Linear(in_features=128, out_features=16, bias=False)
+                (lora_B): Linear(in_features=16, out_features=128, bias=False)
+              )
+              (2): GELU(approximate='none')
+              (3): ReLoRaLinear(
+                (lora_dropout): Dropout(p=0, inplace=False)
+                (lora_A): Linear(in_features=128, out_features=16, bias=False)
+                (lora_B): Linear(in_features=16, out_features=128, bias=False)
+              )
+            )
+          )
+        )
+        (2): ModuleList(
+          (0): Attention(
+            (norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+            (attend): Softmax(dim=-1)
+            (to_qkv): ReLoRaLinear(
+              (lora_dropout): Dropout(p=0, inplace=False)
+              (lora_A): Linear(in_features=128, out_features=32, bias=False)
+              (lora_B): Linear(in_features=32, out_features=768, bias=False)
+            )
+            (to_out): ReLoRaLinear(
+              (lora_dropout): Dropout(p=0, inplace=False)
+              (lora_A): Linear(in_features=256, out_features=32, bias=False)
+              (lora_B): Linear(in_features=32, out_features=128, bias=False)
+            )
+          )
+          (1): FeedForward(
+            (net): Sequential(
+              (0): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+              (1): ReLoRaLinear(
+                (lora_dropout): Dropout(p=0, inplace=False)
+                (lora_A): Linear(in_features=128, out_features=32, bias=False)
+                (lora_B): Linear(in_features=32, out_features=128, bias=False)
+              )
+              (2): GELU(approximate='none')
+              (3): ReLoRaLinear(
+                (lora_dropout): Dropout(p=0, inplace=False)
+                (lora_A): Linear(in_features=128, out_features=32, bias=False)
+                (lora_B): Linear(in_features=32, out_features=128, bias=False)
+              )
+            )
+          )
+        )
+        (3): ModuleList(
+          (0): Attention(
+            (norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+            (attend): Softmax(dim=-1)
+            (to_qkv): ReLoRaLinear(
+              (lora_dropout): Dropout(p=0, inplace=False)
+              (lora_A): Linear(in_features=128, out_features=64, bias=False)
+              (lora_B): Linear(in_features=64, out_features=768, bias=False)
+            )
+            (to_out): ReLoRaLinear(
+              (lora_dropout): Dropout(p=0, inplace=False)
+              (lora_A): Linear(in_features=256, out_features=64, bias=False)
+              (lora_B): Linear(in_features=64, out_features=128, bias=False)
+            )
+          )
+          (1): FeedForward(
+            (net): Sequential(
+              (0): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+              (1): ReLoRaLinear(
+                (lora_dropout): Dropout(p=0, inplace=False)
+                (lora_A): Linear(in_features=128, out_features=64, bias=False)
+                (lora_B): Linear(in_features=64, out_features=128, bias=False)
+              )
+              (2): GELU(approximate='none')
+              (3): ReLoRaLinear(
+                (lora_dropout): Dropout(p=0, inplace=False)
+                (lora_A): Linear(in_features=128, out_features=64, bias=False)
+                (lora_B): Linear(in_features=64, out_features=128, bias=False)
+              )
+            )
+          )
+        )
+      )
+    )
+    (to_latent): Identity()
+    (linear_head): Sequential(
+      (0): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+      (1): Linear(in_features=128, out_features=10, bias=True)
+    )
+  )
+)
